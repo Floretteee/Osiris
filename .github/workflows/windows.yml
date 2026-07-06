@@ -1,9 +1,13 @@
 name: Windows
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   msbuild:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -22,6 +26,7 @@ jobs:
       run: msbuild Osiris.sln /p:Platform=x64 /p:Configuration=${{ matrix.configuration }} ${{ env.toolset }}
 
   cmake:
+    if: github.event_name != 'workflow_dispatch'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -45,3 +50,18 @@ jobs:
       run: ctest -R ^Unit --test-dir build --output-on-failure --no-tests=error --schedule-random -j $env:NUMBER_OF_PROCESSORS
     - name: run functional tests
       run: ctest -R ^Functional --test-dir build --output-on-failure --no-tests=error --schedule-random -j $env:NUMBER_OF_PROCESSORS
+
+  build:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2022
+    steps:
+    - uses: actions/checkout@v6
+    - name: configure
+      run: cmake -Werror=dev -A x64 -B build
+    - name: build
+      run: cmake --build build --target Osiris --config Release
+    - name: upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: Osiris
+        path: build/Source/Release/Osiris.dll
